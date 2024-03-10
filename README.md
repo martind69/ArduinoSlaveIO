@@ -11,14 +11,16 @@ Register Address `0x00` - R
 Return Value `0x27`
 
 ## Digital: I/O
-Input Register Address `0x10` to `0x25`
+Input Register Address `0x10` to `0x25` - R
 
-Output Register Address `0x01`
+Output Register Address `0x01` - W
 
 ## Analog: ADC/DAC
-Input Register Address `0xA0` to `0xA7`
+Input Register Address `0xA0` to `0xA7` - R
 
 ## Waveform: PWM
+> [!NOTE]
+> This feature is not implementet yet
 
 ## Counter: Time/Frequency measurement
 > [!NOTE]
