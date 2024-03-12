@@ -1,14 +1,10 @@
 /*
 
   Universal Transceiver I/O Extender
-  MCU Atmel 328P
-  Arduino Nano
+  Atmel ATMega328P aka Arduino Nano
 
   Copyright (c) 2024, Martin Dittrich
   All rights reserved.
-
-  Reads data from an I2C/TWI peripheral device
-  START|ADDRESS|R/W|(N)ACK|DATA|(N)ACK|DATA|...|(N)ACK|STOP
 
 */
 
@@ -21,7 +17,8 @@
 #define BUFFER_LENGTH 32
 #define TX_LENGTH 16
 #define PIN_OFFSET 0x10
-#define ADC_OFFSET 0x26
+#define PWM_OFFSET 0x26
+#define ADC_OFFSET 0x2D
 #define DIR_OFFSET 0x10
 #define PUR_OFFSET 0x20
 #define PWM_OFFSET 0x40
@@ -89,7 +86,7 @@ void receiveCallback(int length) {
   else if(transferLength > 1) { // check if write was consistent
     switch(buffer[0]) {
       // pin input registers
-      case 0x08:
+      case 0x07:
         for(i = (transferLength - 1); i > 0; i --)
           for(j = 0; j < 8; j ++) {
             pin = (transferLength - 1 - i) * 8 + j;
@@ -103,7 +100,7 @@ void receiveCallback(int length) {
           }
         break;
       // pin pullup registers
-      case 0x09:
+      case 0x08:
         for(i = (transferLength - 1); i > 0; i --)
           for(j = 0; j < 8; j ++) {
             pin = (transferLength - 1 - i) * 8 + j;
@@ -117,7 +114,7 @@ void receiveCallback(int length) {
           }
         break;
       // pin output registers
-      case 0x07:
+      case 0x09:
         for(i = (transferLength - 1); i > 0; i --)
           for(j = 0; j < 8; j ++) {
             pin = (transferLength - 1 - i) * 8 + j;
@@ -150,7 +147,6 @@ void receiveCallback(int length) {
           else if(dir == 0 && pur == 1) pinMode(pin, INPUT_PULLUP); // set input pullup
           else if(dir == 1) pinMode(pin, OUTPUT); // set output
           if(pwm == 1) analogWrite(pin, 123); // set output pwm
-          pinMode(pin, INPUT_PULLUP); // set input pullups
         }
         break;
     }
