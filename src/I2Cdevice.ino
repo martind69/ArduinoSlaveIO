@@ -13,12 +13,13 @@
 #define DEVICE_PIN_MAX 21
 #define DEVICE_ADC_OFFSET 14
 #define DEVICE_ADC_MAX 21
+#define DEVICE_PWM_AMOUNT 6
 #define REGISTER_LENGTH 0xFF
+#define REGISTER_PIN_OFFSET 0x10
+#define REGISTER_PWM_OFFSET 0x26
+#define REGISTER_ADC_OFFSET 0x2C
 #define BUFFER_LENGTH 32
 #define TX_LENGTH 16
-#define PIN_OFFSET 0x10
-#define PWM_OFFSET 0x26
-#define ADC_OFFSET 0x2D
 #define DIR_OFFSET 0x10
 #define PUR_OFFSET 0x20
 #define PWM_OFFSET 0x40
@@ -29,7 +30,10 @@
 
 uint8_t   buffer[BUFFER_LENGTH],
           device[REGISTER_LENGTH],
-          transferLength;
+          transferLength,
+          pwmMapping[DEVICE_PWM_AMOUNT] = {
+            3, 5, 6, 9, 10, 11
+          };
 byte      availlable = false;
 
 /*
@@ -69,11 +73,12 @@ void requestCallback() {
                      slave is sender
 */
 void receiveCallback(int length) {
-  static uint8_t i, j, pin, dir, pur, pwm;
+  static uint8_t address, i, j, pin, dir, pur, pwm;
   transferLength = length;
   for(i = 0; i < transferLength; i ++) {
     buffer[i] = Wire.read(); // receive a byte
   }
+  address = buffer[0];
   if(transferLength == 1) { // check if write was a request
     if(DEBUG) {
       Serial.print("I2C stream dump [S]-");
@@ -129,7 +134,8 @@ void receiveCallback(int length) {
         break;
       // single pin registers
       default:
-        pin = buffer[0] - PIN_OFFSET;
+        device[address] = buffer[1];
+        pin = buffer[0] - REGISTER_PIN_OFFSET;
         dir = buffer[1] & DIR_OFFSET;
         pur = buffer[1] & PUR_OFFSET;
         pwm = buffer[1] & PWM_OFFSET;
@@ -146,7 +152,6 @@ void receiveCallback(int length) {
           if(dir == 0 && pur == 0) pinMode(pin, INPUT); // set input
           else if(dir == 0 && pur == 1) pinMode(pin, INPUT_PULLUP); // set input pullup
           else if(dir == 1) pinMode(pin, OUTPUT); // set output
-          if(pwm == 1) analogWrite(pin, 123); // set output pwm
         }
         break;
     }
@@ -189,17 +194,26 @@ void setup(void) {
 void loop(void) {
   static uint8_t i, *offset;
   static uint16_t value;
-  offset = &device[PIN_OFFSET];
-  for(i = 0; i < DEVICE_PIN_MAX; i ++) {
+  // read operations
+  offset = &device[REGISTER_PIN_OFFSET];
+  for(i = 0; i <= DEVICE_PIN_MAX; i ++) {
     value = digitalRead(i); // read 1 bit, store at position 0
     bitWrite(offset[i], 0, value);
   }
-  offset = &device[ADC_OFFSET];
+  offset = &device[REGISTER_ADC_OFFSET];
   for(i = 0; i <= (DEVICE_ADC_MAX - DEVICE_ADC_OFFSET); i ++) {
     value = analogRead(i); // read 10 bit, store right justified format
     offset[i * 2] = highByte(value);
     offset[i * 2 + 1] = lowByte(value);
   }
+  // write operations
+  offset = &device[REGISTER_PWM_OFFSET];
+  for(i = 0; i < DEVICE_PWM_AMOUNT; i ++) {
+    if(device[REGISTER_PIN_OFFSET + pwmMapping[i]] & PWM_OFFSET) { // check if pin has pwm enabled
+      analogWrite(pwmMapping[i], offset[i]); // set pwm duty
+    }
+  }
+  // blink on bus update
   if(availlable) {
     availlable = false;
     digitalWrite(LED_BUILTIN, HIGH);
