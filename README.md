@@ -24,7 +24,7 @@ Supported: GPIO, PWM, ADC
 ||R|R/W|R/W|R/W|R|R|R|R/W|
 |||PWM|PUR|DIR||||PIN|
 
-**PWM** <sub>0x26 to 0x2C</sub>
+**PWM** <sub>0x26 to 0x2B</sub>
 |Offset|Bit 7|Bit 6|Bit 5|Bit 4|Bit 3|Bit 2|Bit 1|Bit 0|
 |---|---|---|---|---|---|---|---|---|
 |`0x26`|x|x|x|x|x|x|x|x|
@@ -33,10 +33,10 @@ Supported: GPIO, PWM, ADC
 ** 8-bit resulution on target ATMega328P
 
 ## Analog
-**ADC** <sub>0x2D to 0x3D</sub>
+**ADC** <sub>0x2C to 0x3B</sub>
 |Offset|Bit 15|Bit 14|Bit 13|Bit 12|Bit 11|Bit 10|Bit 9|Bit 8|Bit 7|Bit 6|Bit 5|Bit 4|Bit 3|Bit 2|Bit 1|Bit 0|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|`0x2D:2E`|0|0|0|0|0|x|x|x|x|x|x|x|x|x|x|x|
+|`0x2C:2D`|0|0|0|0|0|x|x|x|x|x|x|x|x|x|x|x|
 ||R|R|R|R|R|R|R|R|R|R|R|R|R|R|R|R|
 
 ** right justified format
