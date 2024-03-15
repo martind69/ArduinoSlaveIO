@@ -83,21 +83,21 @@ Setting GPIO 2 and 4 as input - GPIO 4 with enabled pull-up
 ```
 Wire.beginTransmission(0x50);
 Wire.write(0x12);
-Wire.write(0x82);
+Wire.write(0x80);
 Wire.endTransmission();
 
 Wire.beginTransmission(0x50);
 Wire.write(0x14);
-Wire.write(0x86);
+Wire.write(0x84);
 Wire.endTransmission();
 ```
 Or in a sequential manner
 ```
 Wire.beginTransmission(0x50);
 Wire.write(0x12);
-Wire.write(0x82);
+Wire.write(0x80);
 Wire.write(0x00); // doesn't influence previous setting of pin 3
-Wire.write(0x86);
+Wire.write(0x84);
 Wire.endTransmission();
 ```
 
@@ -113,7 +113,7 @@ Wire.endTransmission(false); // don't send stop
 Wire.requestFrom(0x50, 1, 1); // send stop after 1 byte rx
 
 while(Wire.available()) {
-    buffer[i++] = Wire.read(); // receive a byte
+    buffer[i++] = Wire.read() & 1; // receive a byte, mask b0
     length = i; // save length
 }
 ```
@@ -121,6 +121,11 @@ while(Wire.available()) {
 ### ADC
 Reading GPIO 14 aka ADC 0 input
 ```
+Wire.beginTransmission(0x50);
+Wire.write(0x1E);
+Wire.write(0x80);
+Wire.endTransmission();
+
 Wire.beginTransmission(0x50);
 Wire.write(0x2C);
 Wire.endTransmission(false); // don't send stop
@@ -133,14 +138,14 @@ while(Wire.available()) {
 ```
 
 ## Output setup
-Setting GPIO 0 and 1 as output - GPIO 0 set High - GPIO 1 set Low
+Setting GPIO 0 and 1 as output
 
 > [!IMPORTANT]
 > Each manipulation on bits 1-6 needs an active unlock bit.
 ```
 Wire.beginTransmission(0x50);
 Wire.write(0x10);
-Wire.write(0x83);
+Wire.write(0x82);
 Wire.write(0x82);
 Wire.endTransmission();
 ```
@@ -159,7 +164,7 @@ Wire.endTransmission();
 ```
 
 ### PWM
-Changing PWM 1 and 2 value - PWM 1 to 15 - PWM 2 to 240
+Setting PWM 1 and 2 value - PWM 1 to 15 - PWM 2 to 240
 ```
 Wire.beginTransmission(0x50);
 Wire.write(0x15);
