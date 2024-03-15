@@ -20,9 +20,9 @@ Supported: GPIO, PWM, ADC
 **GPIO** <sub>0x10 to 0x25</sub>
 |Offset|Bit 7|Bit 6|Bit 5|Bit 4|Bit 3|Bit 2|Bit 1|Bit 0|
 |---|---|---|---|---|---|---|---|---|
-|`0x10`|0|x|x|x|0|0|0|x|
-||R|R/W|R/W|R/W|R|R|R|R/W|
-|||PWM|PUR|DIR||||PIN|
+|`0x10`|x|0|0|0|x|x|x|x|
+||R/W|R|R|R|R/W|R/W|R/W|R/W|
+||!LOCK||||PWM|PUR|DIR|PIN|
 
 **PWM** <sub>0x26 to 0x2B</sub>
 |Offset|Bit 7|Bit 6|Bit 5|Bit 4|Bit 3|Bit 2|Bit 1|Bit 0|
@@ -69,4 +69,67 @@ Supported: GPIO, PWM, ADC
 
     0 = DISABLE
     1 = ENABLE
+
+# Examples
+I2C Master device code snippets
+## Output
+Setting GPIO 0 and 1 as Output - GPIO 0 set High - GPIO 1 set Low
+
+Each manipulation on bits 1-6 needs an active unlock bit.
+```
+Wire.beginTransmission(0x50);
+Wire.write(0x10);
+Wire.write(0x83);
+Wire.write(0x82);
+Wire.endTransmission();
+```
+Changing GPIO 0 and 1 output status - GPIO 0 set Low - GPIO 1 set High
+
+Each consequent write to an output pin doesn't need an unlock bit.
+```
+Wire.beginTransmission(0x50);
+Wire.write(0x10);
+Wire.write(0x00);
+Wire.write(0x01);
+Wire.endTransmission();
+```
+## Input
+Setting GPIO 2 and 4 as Input - GPIO 4 with enabled pull-up
+
+Each manipulation on bits 1-6 needs an active unlock bit.
+```
+Wire.beginTransmission(0x50);
+Wire.write(0x12);
+Wire.write(0x82);
+Wire.endTransmission();
+
+Wire.beginTransmission(0x50);
+Wire.write(0x14);
+Wire.write(0x86);
+Wire.endTransmission();
+```
+Or in a sequential manner
+```
+Wire.beginTransmission(0x50);
+Wire.write(0x12);
+Wire.write(0x82);
+Wire.write(0x00); // may influence previous setting of pin 3
+Wire.write(0x86);
+Wire.endTransmission();
+```
+Reading GPIO 2 input
+```
+static uint8_t buffer[BUFFER_LENGTH], length;
+uint8_t i = 0;
+
+Wire.beginTransmission(0x50);
+Wire.write(0x12);
+Wire.endTransmission(false); // don't send stop
+Wire.requestFrom(0x50, 1, 1); // send stop after 1 byte rx
+
+while(Wire.available()) {
+    buffer[i++] = Wire.read(); // receive a byte
+    length = i; // save length
+}
+```
 
