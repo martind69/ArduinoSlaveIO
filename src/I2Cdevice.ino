@@ -91,49 +91,6 @@ void receiveCallback(int length) {
     }
   }
   else if(transferLength > 1) {
-    switch(address) {
-      // single pin registers
-      case 0x10 ... 0x25:
-        pin = buffer[0] - REGISTER_PIN_OFFSET;
-        if(buffer[1] & UNLOCK_BIT) { // checking unlock bit
-          device[address] = buffer[1] & (PWM_OFFSET | PUR_OFFSET | DIR_OFFSET);
-          dir = buffer[1] & DIR_OFFSET;
-          pur = buffer[1] & PUR_OFFSET;
-          pwm = buffer[1] & PWM_OFFSET;
-          if(DEBUG) {
-            Serial.print("Pin ");
-            Serial.print(pin);
-            Serial.print(" set as ");
-            if(dir == 0 && pur == 0) Serial.println("INPUT");
-            else if(dir == 0 && pur == 1) Serial.println("INPUT_PULLUP");
-            else if(dir == 1 && pwm == 1) Serial.println("OUTPUT_PWM");
-            else if(dir == 1) Serial.println("OUTPUT");
-          }
-          else {
-            if(dir == 0 && pur == 0) pinMode(pin, INPUT); // set input
-            else if(dir == 0 && pur == 1) pinMode(pin, INPUT_PULLUP); // set input pullup
-            else if(dir == 1) pinMode(pin, OUTPUT); // set output
-          }
-        }
-        else { // writing latches
-          lat = buffer[1] & PIN_OFFSET;
-          if(DEBUG) {
-            Serial.print("Pin ");
-            Serial.print(pin);
-            Serial.print(" set ");
-            if(lat == 0) Serial.println("LOW");
-            else if(lat == 1) Serial.println("HIGH");
-          }
-          else {
-            device[address] = buffer[1] & PIN_OFFSET;
-          }
-        }
-        break;
-      // pwm registers
-      case 0x26 ... 0x2B:
-        device[address] = buffer[1];
-        break;
-    }
     if(DEBUG) {
       Serial.print("I2C stream dump [S]-");
       for(i = 0; i < transferLength; i ++) {
@@ -143,6 +100,60 @@ void receiveCallback(int length) {
       Serial.print("P], ");
       Serial.print(transferLength);
       Serial.println(" bytes written to register");
+    }
+    switch(address) {
+      // single pin registers
+      case 0x10 ... 0x25:
+        pin = buffer[0] - REGISTER_PIN_OFFSET;
+        for(i = 1; i < transferLength; i ++) {
+          if(buffer[i] & UNLOCK_BIT) { // checking unlock bit
+            device[address] = buffer[i] & (PWM_OFFSET | PUR_OFFSET | DIR_OFFSET);
+            dir = buffer[i] & DIR_OFFSET;
+            pur = buffer[i] & PUR_OFFSET;
+            pwm = buffer[i] & PWM_OFFSET;
+            if(DEBUG) {
+              Serial.print("Pin ");
+              Serial.print(pin);
+              Serial.print(" set as ");
+              if(!dir && !pur && !pwm) Serial.println("INPUT");
+              else if(!dir && pur && !pwm) Serial.println("INPUT_PULLUP");
+              else if(dir && !pur && pwm) Serial.println("OUTPUT_PWM");
+              else if(dir && !pur && !pwm) Serial.println("OUTPUT");
+              else Serial.println("UNKNOWN!");
+            }
+            else {
+              if(!dir && !pur && !pwm) pinMode(pin, INPUT); // set input
+              else if(!dir && pur && !pwm) pinMode(pin, INPUT_PULLUP); // set input pullup
+              else if(dir && !pur) pinMode(pin, OUTPUT); // set output
+            }
+          }
+          else { // writing latches
+            lat = buffer[i] & PIN_OFFSET;
+            if(DEBUG) {
+              Serial.print("Pin ");
+              Serial.print(pin);
+              Serial.print(" set ");
+              if(!lat) Serial.println("LOW");
+              else Serial.println("HIGH");
+            }
+            else {
+              device[address] = lat;
+            }
+          }
+        }
+        break;
+      // pwm registers
+      case 0x26 ... 0x2B:
+        for(i = 1; i < transferLength; i ++) {
+          if(DEBUG) {
+            Serial.print("PWM register 0x");
+            Serial.print(address, HEX);
+            Serial.print(" updated to 0x");
+            Serial.println(buffer[i], HEX);
+          }
+          device[address] = buffer[i];
+        }
+        break;
     }
   }
   availlable = true;
