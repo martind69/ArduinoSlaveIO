@@ -20,9 +20,11 @@
 #define REGISTER_ADC_OFFSET 0x2C
 #define BUFFER_LENGTH 32
 #define TX_LENGTH 16
-#define DIR_OFFSET 0x10
-#define PUR_OFFSET 0x20
-#define PWM_OFFSET 0x40
+#define PIN_OFFSET 0x01
+#define DIR_OFFSET 0x02
+#define PUR_OFFSET 0x04
+#define PWM_OFFSET 0x08
+#define UNLOCK_BIT 0x80
 #define DEBUG 1
 
 #include <Arduino.h>
@@ -73,7 +75,7 @@ void requestCallback() {
                      slave is sender
 */
 void receiveCallback(int length) {
-  static uint8_t address, i, j, pin, dir, pur, pwm;
+  static uint8_t address, i, j, pin, lat, dir, pur, pwm;
   transferLength = length;
   for(i = 0; i < transferLength; i ++) {
     buffer[i] = Wire.read(); // receive a byte
@@ -88,71 +90,48 @@ void receiveCallback(int length) {
       Serial.println(" byte register request received");
     }
   }
-  else if(transferLength > 1) { // check if write was consistent
-    switch(buffer[0]) {
-      // pin input registers
-      case 0x07:
-        for(i = (transferLength - 1); i > 0; i --)
-          for(j = 0; j < 8; j ++) {
-            pin = (transferLength - 1 - i) * 8 + j;
-            dir = (buffer[i] >> j) & 1;
-            if(DEBUG && pin <= DEVICE_PIN_MAX && dir) {
-              Serial.print("Pin ");
-              Serial.print(pin);
-              Serial.println(" set as INPUT");
-            }
-            else if(pin <= DEVICE_PIN_MAX && dir) pinMode(pin, INPUT); // set only inputs
-          }
-        break;
-      // pin pullup registers
-      case 0x08:
-        for(i = (transferLength - 1); i > 0; i --)
-          for(j = 0; j < 8; j ++) {
-            pin = (transferLength - 1 - i) * 8 + j;
-            dir = (buffer[i] >> j) & 1;
-            if(DEBUG && pin <= DEVICE_PIN_MAX && dir) {
-              Serial.print("Pin ");
-              Serial.print(pin);
-              Serial.println(" set as INPUT_PULLUP");
-            }
-            else if(pin <= DEVICE_PIN_MAX && dir) pinMode(pin, INPUT_PULLUP); // set input pullups
-          }
-        break;
-      // pin output registers
-      case 0x09:
-        for(i = (transferLength - 1); i > 0; i --)
-          for(j = 0; j < 8; j ++) {
-            pin = (transferLength - 1 - i) * 8 + j;
-            dir = (buffer[i] >> j) & 1;
-            if(DEBUG && pin <= DEVICE_PIN_MAX && dir) {
-              Serial.print("Pin ");
-              Serial.print(pin);
-              Serial.println(" set as OUTPUT");
-            }
-            else if(pin <= DEVICE_PIN_MAX && dir) pinMode(pin, OUTPUT); // set only outputs
-          }
-        break;
+  else if(transferLength > 1) {
+    switch(address) {
       // single pin registers
-      default:
-        device[address] = buffer[1];
+      case 0x10 ... 0x25:
         pin = buffer[0] - REGISTER_PIN_OFFSET;
-        dir = buffer[1] & DIR_OFFSET;
-        pur = buffer[1] & PUR_OFFSET;
-        pwm = buffer[1] & PWM_OFFSET;
-        if(DEBUG && pin <= DEVICE_PIN_MAX) {
-          Serial.print("Pin ");
-          Serial.print(pin);
-          Serial.print(" set as ");
-          if(dir == 0 && pur == 0) Serial.println("INPUT");
-          else if(dir == 0 && pur == 1) Serial.println("INPUT_PULLUP");
-          else if(dir == 1 && pwm == 1) Serial.println("OUTPUT_PWM");
-          else if(dir == 1) Serial.println("OUTPUT");
+        if(buffer[1] & UNLOCK_BIT) { // checking unlock bit
+          device[address] = buffer[1] & (PWM_OFFSET | PUR_OFFSET | DIR_OFFSET);
+          dir = buffer[1] & DIR_OFFSET;
+          pur = buffer[1] & PUR_OFFSET;
+          pwm = buffer[1] & PWM_OFFSET;
+          if(DEBUG) {
+            Serial.print("Pin ");
+            Serial.print(pin);
+            Serial.print(" set as ");
+            if(dir == 0 && pur == 0) Serial.println("INPUT");
+            else if(dir == 0 && pur == 1) Serial.println("INPUT_PULLUP");
+            else if(dir == 1 && pwm == 1) Serial.println("OUTPUT_PWM");
+            else if(dir == 1) Serial.println("OUTPUT");
+          }
+          else {
+            if(dir == 0 && pur == 0) pinMode(pin, INPUT); // set input
+            else if(dir == 0 && pur == 1) pinMode(pin, INPUT_PULLUP); // set input pullup
+            else if(dir == 1) pinMode(pin, OUTPUT); // set output
+          }
         }
-        else if(pin <= DEVICE_PIN_MAX) {
-          if(dir == 0 && pur == 0) pinMode(pin, INPUT); // set input
-          else if(dir == 0 && pur == 1) pinMode(pin, INPUT_PULLUP); // set input pullup
-          else if(dir == 1) pinMode(pin, OUTPUT); // set output
+        else { // writing latches
+          lat = buffer[1] & PIN_OFFSET;
+          if(DEBUG) {
+            Serial.print("Pin ");
+            Serial.print(pin);
+            Serial.print(" set ");
+            if(lat == 0) Serial.println("LOW");
+            else if(lat == 1) Serial.println("HIGH");
+          }
+          else {
+            device[address] = buffer[1] & PIN_OFFSET;
+          }
         }
+        break;
+      // pwm registers
+      case 0x26 ... 0x2B:
+        device[address] = buffer[1];
         break;
     }
     if(DEBUG) {
@@ -207,13 +186,19 @@ void loop(void) {
     offset[i * 2 + 1] = lowByte(value);
   }
   // write operations
+  offset = &device[REGISTER_PIN_OFFSET];
+  for(i = 0; i <= DEVICE_PIN_MAX; i ++) {
+    if(device[REGISTER_PIN_OFFSET + i] & DIR_OFFSET) { // check if pin has output latch enabled
+      digitalWrite(i, offset[i] & PIN_OFFSET); // set latch bit
+    }
+  }
   offset = &device[REGISTER_PWM_OFFSET];
   for(i = 0; i < DEVICE_PWM_AMOUNT; i ++) {
     if(device[REGISTER_PIN_OFFSET + pwmMapping[i]] & PWM_OFFSET) { // check if pin has pwm enabled
       analogWrite(pwmMapping[i], offset[i]); // set pwm duty
     }
   }
-  // blink on bus update
+  // blink on update
   if(availlable) {
     availlable = false;
     digitalWrite(LED_BUILTIN, HIGH);
