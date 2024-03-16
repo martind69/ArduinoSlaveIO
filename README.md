@@ -51,48 +51,54 @@ Supported: GPIO, PWM, ADC, COUNTER
 > 
 > This feature is not fully implementet yet
 
+|Offset|Bit 15|Bit 14|Bit 13|Bit 12|Bit 11|Bit 10|Bit 9|Bit 8|Bit 7|Bit 6|Bit 5|Bit 4|Bit 3|Bit 2|Bit 1|Bit 0|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|`0x3C:3D`|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+||R|R|R|R|R|R|R|R|R|R|R|R|R|R|R|R|
+
+** right justified format
+
+** 16-bit resulution on target ATMega328P
+
 ## Terminology
 ### PIN - Pin status (regardless of DIR)
+> [!NOTE]
+> Usable pins: 0-21
 
     0 = LOW
     1 = HIGH
 
-> [!NOTE]
-> Usable pins: 0-21
-
 ### DIR - Pin direction
-
-    0 = INPUT
-    1 = OUTPUT
-    
 > [!NOTE]
 > Usable pins: 0-21
 > 
 > Pin 13 aka `LED_BUILTIN` already mapped as output
 
+    0 = INPUT
+    1 = OUTPUT
+    
 ### PUR - Pull-up resistor
-
-    0 = DISABLE
-    1 = ENABLE
-
 > [!NOTE]
 > Usable pins: 0-21
 
-### PWM - Pulse-width modulation
-
     0 = DISABLE
     1 = ENABLE
 
+### PWM - Pulse-width modulation
 > [!IMPORTANT]
 > Usable pins: 3, 5, 6, 9-11
 
-### CNT - Pulse-counter
-
     0 = DISABLE
     1 = ENABLE
 
+### CNT - Pulse-counter
 > [!IMPORTANT]
 > Usable pins: 2, 3
+>
+> Only one pin is mappable as counter module
+
+    0 = DISABLE
+    1 = ENABLE
 
 # Examples
 I2C Master device code snippets
