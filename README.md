@@ -41,22 +41,18 @@ Supported: GPIO, PWM, ADC, COUNTER
 |`0x2C:2D`|0|0|0|0|0|x|x|x|x|x|x|x|x|x|x|x|
 ||R|R|R|R|R|R|R|R|R|R|R|R|R|R|R|R|
 
-** right justified format
+** right-justified format
 
 ** 10-bit resulution on target ATMega328P
 
 ## Counter
-> [!NOTE]
-> Time/Frequency measurement
-> 
-> This feature is not fully implementet yet
-
+### CNT <sub>0x3C to 0x3D</sub>
 |Offset|Bit 15|Bit 14|Bit 13|Bit 12|Bit 11|Bit 10|Bit 9|Bit 8|Bit 7|Bit 6|Bit 5|Bit 4|Bit 3|Bit 2|Bit 1|Bit 0|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 |`0x3C:3D`|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
 ||R|R|R|R|R|R|R|R|R|R|R|R|R|R|R|R|
 
-** right justified format
+** right-justified format
 
 ** 16-bit resulution on target ATMega328P
 
