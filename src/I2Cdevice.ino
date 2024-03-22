@@ -3,6 +3,7 @@
   Universal Transceiver I/O Extender
   Atmel ATMega328P aka Arduino Nano
 
+  https://github.com/martind69/ArduinoSlaveIO
   Copyright (c) 2024, Martin Dittrich
   All rights reserved.
 
