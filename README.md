@@ -1,7 +1,7 @@
 # Arduino I/O Extender
 This project solves the problem of task centralization. The effort of coding all tasks into a single project can be difficult. So let's think about decentralization networks!
 
-For modular programming we can use the Arduino I/O Extender. It works as a I2C slave device.
+For modular programming you can use the Arduino I/O Extender. It acts as an I2C slave on an ATMega328P target.
 
 # Features
 Performing tasks in a decentralized way.
@@ -18,12 +18,14 @@ Supported: GPIO, PWM, ADC, COUNTER/TIMER
 |`0x00`|0|0|1|0|0|1|1|1|
 ||R|R|R|R|R|R|R|R|
 
-### Counter-CFG <sub>0x07</sub> (changeable)
+### Counter-CFG <sub>0x07</sub>
 |Offset|Bit 7|Bit 6|Bit 5|Bit 4|Bit 3|Bit 2|Bit 1|Bit 0|
 |---|---|---|---|---|---|---|---|---|
-|`0x07`|TOIE1|CS12|CS11|CS10|ISC11|ISC10|ISC01|ISC00|
-|init|1|0|1|0|1|0|1|0|
+|`0x07`|1|0|1|0|1|0|1|0|
+||TOIE1|CS12|CS11|CS10|ISC11|ISC10|ISC01|ISC00|
 ||R/W|R/W|R/W|R/W|R/W|R/W|R/W|R/W|
+
+** must be written before GPIO registers
 
 |ISCx1|ISCx0|Interrupt Select|
 |---|---|---|
