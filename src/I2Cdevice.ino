@@ -12,11 +12,11 @@
 #define MCU_CLOCK 16000000
 #define DEVICE_ADDRESS 0x50
 #define DEVICE_ID 0x27
-#define DEVICE_PIN_MAX 21
-#define DEVICE_ADC_OFFSET 14
-#define DEVICE_ADC_MAX 21
+#define DEVICE_PIN_AMOUNT 22
+#define DEVICE_ADC_AMOUNT 6
 #define DEVICE_PWM_AMOUNT 6
 #define DEVICE_CNT_AMOUNT 2
+#define BUFFER_LENGTH 0x21
 #define REGISTER_LENGTH 0xFF
 #define REGISTER_PIN_OFFSET 0x10
 #define REGISTER_PWM_OFFSET 0x26
@@ -28,24 +28,42 @@
 #define PWM_OFFSET 0x08
 #define CNT_OFFSET 0x10
 #define UNLOCK_BIT 0x80
-#define BUFFER_LENGTH 32
-#define TX_LENGTH 16
+#define DEVICE_TX_MAX 16
 #define DEBUG 0
 
 #include <Arduino.h>
 #include <Wire.h>
 
-uint8_t   buffer[BUFFER_LENGTH],
-          transferLength,
-          availlable = false,
-          pwmMapping[DEVICE_PWM_AMOUNT] = {
-            3, 5, 6, 9, 10, 11
-          },
-          cntMapping[DEVICE_CNT_AMOUNT] = {
-            2, 3
-          };
+uint8_t     buffer[BUFFER_LENGTH],
+            transferLength,
+            error = false,
+            availlable = false,
+            adcMapping[DEVICE_ADC_AMOUNT] = {
+              14, 15, 16, 17, 20, 21
+            },
+            pwmMapping[DEVICE_PWM_AMOUNT] = {
+              3, 5, 6, 9, 10, 11
+            },
+            cntMapping[DEVICE_CNT_AMOUNT] = {
+              2, 3
+            };
 
-volatile uint8_t  device[REGISTER_LENGTH];
+volatile uint8_t    device[REGISTER_LENGTH] = { 0 };
+
+/*
+  global helper functions
+*/
+uint8_t containsInArray(uint8_t *array, uint8_t value) {
+  uint8_t result;
+  for(uint8_t available : array) {
+    if(value == available) {
+      result = true;
+      break;
+    }
+    else result = false;
+  }
+  return result;
+}
 
 /*
   callback on requests by master
@@ -56,21 +74,21 @@ volatile uint8_t  device[REGISTER_LENGTH];
 */
 void requestCallback() {
   static uint8_t i, address, *offset;
-  if(transferLength == 1) { // check if write modify (master sends only register address) read was consistent
+  if(transferLength == 1) { // check if write modify (master only sends register address) read was consistent
     address = buffer[0];
     offset = &device[address];
-    Wire.write(offset, TX_LENGTH); // write until nack is received
+    Wire.write(offset, DEVICE_TX_MAX); // write until nack is received
     if(DEBUG) {
       Serial.print("I2C stream dump [Sr]-");
       Serial.print(address, HEX);
       Serial.print("-[1-A]-");
-      for(i = 0; i < TX_LENGTH; i ++) {
+      for(i = 0; i < DEVICE_TX_MAX; i ++) {
         Serial.print(offset[i], HEX);
         Serial.print("-");
       }
-      Serial.print("[NA-P], ");
-      Serial.print(TX_LENGTH);
-      Serial.println(" bytes send");
+      Serial.print("[NA-P], probably ");
+      Serial.print(DEVICE_TX_MAX);
+      Serial.println(" bytes were sent");
     }
   }
 }
@@ -84,7 +102,7 @@ void requestCallback() {
                      slave is sender
 */
 void receiveCallback(int length) {
-  static uint8_t i, address, error, pin, lat, dir, pur, pwm, cnt;
+  static uint8_t i, address, pin, ulb, cnt, pwm, pur, dir, lat;
   transferLength = length;
   for(i = 0; i < transferLength; i ++) {
     buffer[i] = Wire.read(); // receive a byte
@@ -115,28 +133,24 @@ void receiveCallback(int length) {
       case 0x10 ... 0x25:
         pin = buffer[0] - REGISTER_PIN_OFFSET;
         for(i = 1; i < transferLength; i ++) {
+          ulb = buffer[i] & UNLOCK_BIT;
+          cnt = buffer[i] & CNT_OFFSET;
+          pwm = buffer[i] & PWM_OFFSET;
+          pur = buffer[i] & PUR_OFFSET;
+          dir = buffer[i] & DIR_OFFSET;
+          lat = buffer[i] & PIN_OFFSET;
+          error = false;
           // checking unlock bit
-          if(buffer[i] & UNLOCK_BIT) {
+          if(ulb) {
             device[address] = buffer[i] & (CNT_OFFSET | PWM_OFFSET | PUR_OFFSET | DIR_OFFSET);
-            dir = buffer[i] & DIR_OFFSET;
-            pur = buffer[i] & PUR_OFFSET;
-            pwm = buffer[i] & PWM_OFFSET;
-            cnt = buffer[i] & CNT_OFFSET;
-            error = false;
             // check mapping
-            if(pwm) for(uint8_t available : pwmMapping) {
-              if(pin == available) {
-                error = false;
-                break;
-              } else error = true;
+            if(pwm && !containsInArray(pwmMapping, pin)) {
+              error = true;
             }
-            if(cnt) for(uint8_t available : cntMapping) {
-              if(pin == available) {
-                error = false;
-                break;
-              } else error = true;
+            else if(cnt && !containsInArray(cntMapping, pin)) {
+              error = true;
             }
-            if(DEBUG || error) {
+            if(DEBUG) {
               Serial.print("Pin ");
               Serial.print(pin);
               Serial.print(" set as ");
@@ -149,29 +163,35 @@ void receiveCallback(int length) {
               if(error) Serial.println("Error PIN_OUTSIDE_MAPPING");
             }
             // set pinMode
-            else {
+            else if(!error) {
               if(!dir && !pur && !pwm) pinMode(pin, INPUT); // set input
               else if(!dir && pur && !pwm) pinMode(pin, INPUT_PULLUP); // set input pull-up
               else if(dir && !pur && !cnt) pinMode(pin, OUTPUT); // set output
               if(!dir && !pwm && cnt) { // set input counter
                 timerInit(); // setup timer registers
-                attachInterrupt(digitalPinToInterrupt(pin), &intCallback, FALLING); // attach interrupt vect to pin. note: no detach implemented, reset slave device!
+                // attach interrupt-vect. to pin. @tbd: no detach implemented, reset slave device!
+                if(pin == cntMapping[0]) attachInterrupt(digitalPinToInterrupt(pin), &intCallback, device[0x07] & 0x03);
+                else if(pin == cntMapping[1]) attachInterrupt(digitalPinToInterrupt(pin), &intCallback, (device[0x07] & 0x0C) >> 2);
               }
             }
           }
           // writing latches
-          else {
-            lat = buffer[i] & PIN_OFFSET;
+          else if(dir) {
             if(DEBUG) {
               Serial.print("Pin ");
               Serial.print(pin);
               Serial.print(" set ");
-              if(!lat) Serial.println("LOW");
-              else Serial.println("HIGH");
+              if(lat) Serial.println("HIGH");
+              else Serial.println("LOW");
             }
-            else {
+            else if(!error) {
               bitWrite(device[address], 0, lat);
             }
+          }
+          // all other scenarios
+          else {
+            error = true;
+            if(DEBUG) Serial.println("Error CONFIG_MISMATCH");
           }
           pin ++; // next pin
         }
@@ -220,12 +240,12 @@ ISR(TIMER1_OVF_vect) {
 
 /*
   timer setup
-  MCU_CLOCK / 8 = 2e6 Hz | 500 ns
+  MCU_CLOCK / 8 = 2e6 Hz | 500 ns default value
 */
 void timerInit() {
   TCCR1A = 0x00; // mode = normal
-  TCCR1B = 0x02; // prescaler = 8
-  TIMSK1 = 0x01; // overflow isr
+  TCCR1B = device[0x07] & 0x70 >> 4; // prescaler
+  TIMSK1 = device[0x07] & 0x80 >> 7; // overflow isr
 }
 
 /*
@@ -245,6 +265,7 @@ void setup(void) {
   analogReference(DEFAULT); // set analog reference to 5 V
 
   device[0x00] = DEVICE_ID;
+  device[0x07] = 0xAA;
 }
 
 /*
@@ -256,21 +277,21 @@ void loop(void) {
   static uint32_t mtime;
   // read operations
   offset = &device[REGISTER_PIN_OFFSET];
-  for(i = 0; i <= DEVICE_PIN_MAX; i ++) {
+  for(i = 0; i < DEVICE_PIN_AMOUNT; i ++) {
     value = digitalRead(i); // read 1 bit, store at position 0
     if(~offset[i] & DIR_OFFSET) { // check if pin is configured as input
       bitWrite(offset[i], 0, value);
     }
   }
   offset = &device[REGISTER_ADC_OFFSET];
-  for(i = 0; i <= (DEVICE_ADC_MAX - DEVICE_ADC_OFFSET); i ++) {
-    value = analogRead(i); // read 10 bit, store in right-justified format
+  for(i = 0; i < DEVICE_ADC_AMOUNT; i ++) {
+    value = analogRead(adcMapping[i]); // read 10 bit, store in right-justified format
     offset[i * 2] = highByte(value);
     offset[i * 2 + 1] = lowByte(value);
   }
   // write operations
   offset = &device[REGISTER_PIN_OFFSET];
-  for(i = 0; i <= DEVICE_PIN_MAX; i ++) {
+  for(i = 0; i < DEVICE_PIN_AMOUNT; i ++) {
     if(device[REGISTER_PIN_OFFSET + i] & DIR_OFFSET) { // check if pin has output latch enabled
       digitalWrite(i, offset[i] & PIN_OFFSET); // set latch bit
     }
@@ -290,4 +311,6 @@ void loop(void) {
   else if(millis() > mtime + 100) {
     digitalWrite(LED_BUILTIN, LOW);
   }
+  // error handling
+  while(error) {}
 }
