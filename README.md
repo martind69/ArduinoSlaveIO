@@ -6,17 +6,43 @@ For modular programming we can use the Arduino I/O Extender. It works as a I2C s
 # Features
 Performing tasks in a decentralized way.
 
-Supported: GPIO, PWM, ADC, COUNTER
+Supported: GPIO, PWM, ADC, COUNTER/TIMER
 
 # Registers
 ## General
 ### Device-Address <sub>0x50</sub> (changeable)
 
-### Device-ID <sub>0x27</sub> (changeable)
+### Device-ID <sub>0x00</sub> (changeable)
 |Offset|Bit 7|Bit 6|Bit 5|Bit 4|Bit 3|Bit 2|Bit 1|Bit 0|
 |---|---|---|---|---|---|---|---|---|
 |`0x00`|0|0|1|0|0|1|1|1|
 ||R|R|R|R|R|R|R|R|
+
+### Counter-CFG <sub>0x07</sub> (changeable)
+|Offset|Bit 7|Bit 6|Bit 5|Bit 4|Bit 3|Bit 2|Bit 1|Bit 0|
+|---|---|---|---|---|---|---|---|---|
+|`0x07`|TOIE1|CS12|CS11|CS10|ISC11|ISC10|ISC01|ISC00|
+|init|1|0|1|0|1|0|1|0|
+||R/W|R/W|R/W|R/W|R/W|R/W|R/W|R/W|
+
+|ISCx1|ISCx0|Interrupt Select|
+|---|---|---|
+|0|1|Both edges|
+|1|0|Falling edge|
+|1|1|Rising edge|
+
+|CS12|CS11|CS10|Clock Select|
+|---|---|---|---|
+|0|0|1|OSC/1|
+|0|1|0|OSC/8|
+|0|1|1|OSC/64|
+|1|0|0|OSC/256|
+|1|0|1|OSC/1024|
+
+|TOIE1|Overflow Event|
+|---|---|
+|0|Disabled, keeps last value at `0x3C:3D`|
+|1|Enabled, writes `0xFFFF` into `0x3C:3D` on overflow|
 
 ## Digital
 ### GPIO <sub>0x10 to 0x25</sub>
