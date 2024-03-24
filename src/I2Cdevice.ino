@@ -54,9 +54,9 @@ volatile uint8_t    device[REGISTER_LENGTH] = { 0 };
   global helper functions
 */
 uint8_t containsInArray(uint8_t *array, uint8_t value) {
-  uint8_t result;
-  for(uint8_t available : array) {
-    if(value == available) {
+  uint8_t i, result;
+  for(i = 0; i < sizeof(array) / sizeof(uint8_t); i ++) {
+    if(value == array[i]) {
       result = true;
       break;
     }
