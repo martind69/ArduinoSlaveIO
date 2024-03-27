@@ -9,15 +9,20 @@
 
 */
 
+#include <Arduino.h>
+#include <Wire.h>
+
 #define MCU_CLOCK 16000000
+#define BUS_SPEED 400000
 #define DEVICE_ADDRESS 0x50
 #define DEVICE_ID 0x27
 #define DEVICE_PIN_AMOUNT 22
 #define DEVICE_ADC_AMOUNT 6
 #define DEVICE_PWM_AMOUNT 6
 #define DEVICE_CNT_AMOUNT 2
-#define BUFFER_LENGTH 0x21
-#define REGISTER_LENGTH 0xFF
+#define DEVICE_TX_MAX 32
+#define BUFFER_LENGTH 33
+#define REGISTER_LENGTH 255
 #define REGISTER_PIN_OFFSET 0x10
 #define REGISTER_PWM_OFFSET 0x26
 #define REGISTER_ADC_OFFSET 0x2C
@@ -28,11 +33,7 @@
 #define PWM_OFFSET 0x08
 #define CNT_OFFSET 0x10
 #define UNLOCK_BIT 0x80
-#define DEVICE_TX_MAX 16
 #define DEBUG 0
-
-#include <Arduino.h>
-#include <Wire.h>
 
 uint8_t     buffer[BUFFER_LENGTH],
             transferLength,
@@ -252,12 +253,15 @@ void timerInit() {
   setup block
 */
 void setup(void) {
-  Serial.begin(115200); // start serial for output
-  Serial.print("Startup device with slave address 0x");
-  Serial.println(DEVICE_ADDRESS, HEX);
-  if(DEBUG) Serial.println("Application in debug-mode (dry-run)");
+  if(DEBUG) {
+    Serial.begin(115200); // start serial for output
+    Serial.print("Startup device with slave address 0x");
+    Serial.println(DEVICE_ADDRESS, HEX);
+    Serial.println("Application in debug-mode (dry-run)");
+  }
 
   Wire.begin(DEVICE_ADDRESS); // start i2c slave mode
+  Wire.setClock(BUS_SPEED);
   Wire.onRequest(requestCallback);
   Wire.onReceive(receiveCallback);
 
@@ -265,7 +269,7 @@ void setup(void) {
   analogReference(DEFAULT); // set analog reference to 5 V
 
   device[0x00] = DEVICE_ID;
-  device[0x07] = 0xAA;
+  device[0x07] = 0xAA; // set default values
 }
 
 /*
@@ -308,9 +312,7 @@ void loop(void) {
     mtime = millis();
     digitalWrite(LED_BUILTIN, HIGH);
   }
-  else if(millis() > mtime + 100) {
+  else if(!error && millis() > mtime + 100) {
     digitalWrite(LED_BUILTIN, LOW);
   }
-  // error handling
-  while(error) {}
 }
