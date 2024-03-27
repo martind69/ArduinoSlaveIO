@@ -3,6 +3,8 @@ This project solves the problem of task centralization. The effort of coding all
 
 For modular programming you can use the Arduino I/O Extender. It acts as an I2C slave on an ATMega328P target.
 
+![ATMega328P](docs/NANO-pinout.jpg)
+
 # Features
 Performing tasks in a decentralized way.
 
