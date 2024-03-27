@@ -230,3 +230,30 @@ Wire.write(0x32);
 Wire.write(0xC8);
 Wire.endTransmission();
 ```
+
+### CNT
+Reading GPIO 2 input frequency - Using default settings of `0x07`
+```
+Wire.beginTransmission(DEVICE_ADDRESS);
+Wire.write(0x12);
+Wire.write(0x90);
+Wire.endTransmission();
+...
+
+uint8_t i = 0;
+uint16_t time, freq;
+float freq;
+
+Wire.beginTransmission(DEVICE_ADDRESS);
+Wire.write(0x3C);
+Wire.endTransmission(false); // don't send stop
+Wire.requestFrom(DEVICE_ADDRESS, 2, 1); // send stop after 2 byte rx
+
+while(Wire.available()) {
+    buffer[i++] = Wire.read(); // receive a byte
+    length = i; // save length
+}
+
+time = (buffer[0] << 8) | buffer[1];
+freq = 2000000 / time; // MCU_CLOCK / 8 = 2e6 Hz
+```
