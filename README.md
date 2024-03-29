@@ -112,16 +112,14 @@ Supported: GPIO, PWM, ADC, COUNTER/TIMER
 
 ### PWM - Pulse-width modulation
 > [!IMPORTANT]
-> Usable pins: 3, 5, 6, 9-11
+> Usable pins only: 3, 5, 6, 9-11
 
     0 = DISABLE
     1 = ENABLE
 
 ### CNT - Pulse-counter
 > [!IMPORTANT]
-> Usable pins: 2, 3
->
-> Only one pin is mappable as counter module
+> Usable pins only: 2, 3
 
     0 = DISABLE
     1 = ENABLE
@@ -175,6 +173,9 @@ while(Wire.available()) {
 ### ADC
 Reading GPIO 14 aka ADC 0 input
 ```
+static uint8_t buffer[BUFFER_LENGTH], length;
+uint8_t i = 0;
+
 Wire.beginTransmission(DEVICE_ADDRESS);
 Wire.write(0x1E);
 Wire.write(0x80);
@@ -234,17 +235,16 @@ Wire.endTransmission();
 ```
 
 ### CNT
-Reading GPIO 2 input frequency - Using default settings of `0x07`
+Setting GPIO 2 as counter - Reading GPIO 2 input frequency - Using default settings of `0x07`
 ```
+static uint8_t buffer[BUFFER_LENGTH], length;
+uint8_t i = 0;
+uint16_t tcnt, freq;
+
 Wire.beginTransmission(DEVICE_ADDRESS);
 Wire.write(0x12);
 Wire.write(0x90);
 Wire.endTransmission();
-...
-
-uint8_t i = 0;
-uint16_t time, freq;
-float freq;
 
 Wire.beginTransmission(DEVICE_ADDRESS);
 Wire.write(0x3C);
@@ -256,6 +256,6 @@ while(Wire.available()) {
     length = i; // save length
 }
 
-time = (buffer[0] << 8) | buffer[1];
-freq = 2000000 / time; // MCU_CLOCK / 8 = 2e6 Hz
+tcnt = (buffer[0] << 8) | buffer[1]; // this value represents: MCU_CLOCK / CS1x * &Delta;t
+freq = 2000000 / tcnt; // convert to herz: (MCU_CLOCK / CS1x) / tcnt = 2e6 Hz / tcnt
 ```
